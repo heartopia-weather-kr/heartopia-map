@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>두근두근타운 맵</title>
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+>
+
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+>
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #222;
+            font-family: Arial, sans-serif;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+
+        /* =========================================
+           왼쪽 메뉴
+        ========================================= */
+
+        #sidebar {
+            position: fixed;
+
+            top: 0;
+            left: 0;
+
+            width: 260px;
+            height: 100%;
+
+            background: white;
+
+            z-index: 2000;
+
+            padding: 20px;
+
+            box-shadow:
+                3px 0 15px rgba(0, 0, 0, 0.18);
+
+            transition: transform 0.25s ease;
+        }
+
+
+        #sidebar.closed {
+            transform: translateX(-100%);
+        }
+
+
+        .sidebar-title {
+            font-size: 21px;
+            font-weight: bold;
+
+            margin-bottom: 20px;
+        }
+
+
+        /* 검색창 */
+
+        #markerSearch {
+            width: 100%;
+
+            padding: 10px 12px;
+
+            border: 1px solid #ccc;
+            border-radius: 8px;
+
+            font-size: 14px;
+
+            margin-bottom: 18px;
+        }
+
+
+/* 카테고리 버튼 */
+
+/* =========================================
+   카테고리 버튼
+========================================= */
+
+/* 전체 버튼 */
+.category-button {
+    border: none;
+    border-radius: 12px;
+
+    background: #f5f5f5;
+
+    font-size: 15px;
+
+    cursor: pointer;
+
+    transition: 0.15s;
+}
+
+
+/* 전체 버튼은 가로 한 줄 */
+#sidebar > .category-button {
+    width: 100%;
+    height: 50px;
+
+    margin-bottom: 10px;
+
+    text-align: center;
+}
+
+
+/* 카테고리 2열 영역 */
+.category-grid {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 8px;
+
+    width: 100%;
+}
+
+
+/* 2열 카테고리 버튼 */
+.category-grid .category-button {
+    width: 100%;
+    height: 90px;
+
+    margin: 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+}
+
+
+/* 마우스를 올렸을 때 */
+.category-button:hover {
+    background: #e9e9e9;
+
+    transform: translateY(-2px);
+}
+
+
+/* 선택된 카테고리 */
+.category-button.active {
+    background: #e8f5e9;
+
+    border: 2px solid #4CAF50;
+
+    color: #2e7d32;
+
+    font-weight: bold;
+}        /* 메뉴 접기 버튼 */
+
+        #closeSidebar {
+            width: 100%;
+
+            margin-top: 15px;
+
+            padding: 10px;
+
+            border: none;
+            border-radius: 8px;
+
+            background: #ddd;
+
+            cursor: pointer;
+
+            font-size: 14px;
+        }
+
+
+        /* 메뉴 열기 버튼 */
+
+        #openSidebar {
+            position: fixed;
+
+            top: 15px;
+            left: 15px;
+
+            z-index: 1900;
+
+            width: 46px;
+            height: 46px;
+
+            border: none;
+            border-radius: 10px;
+
+            background: white;
+
+            box-shadow:
+                0 2px 10px rgba(0, 0, 0, 0.25);
+
+            font-size: 23px;
+
+            cursor: pointer;
+
+            display: none;
+        }
+
+
+        #openSidebar.visible {
+            display: block;
+        }
+
+
+
+        /* =========================================
+           마커 팝업
+        ========================================= */
+
+        .marker-popup {
+            min-width: 160px;
+        }
+
+
+        .marker-popup-image {
+            width: 220px;
+            max-width: 100%;
+
+            display: block;
+
+            border-radius: 8px;
+
+            margin-bottom: 10px;
+        }
+
+
+        .marker-name {
+            font-size: 16px;
+            font-weight: bold;
+
+            margin-bottom: 5px;
+        }
+
+
+        .marker-category {
+            color: #666;
+
+            margin-bottom: 8px;
+        }
+
+
+        .marker-description {
+            margin-bottom: 8px;
+
+            white-space: pre-wrap;
+        }
+
+
+        .delete-button {
+            margin-top: 5px;
+
+            padding: 6px 10px;
+
+            cursor: pointer;
+        }
+
+
+
+        /* =========================================
+           마커 등록창 배경
+        ========================================= */
+
+        #markerModal {
+            display: none;
+
+            position: fixed;
+
+            top: 0;
+            left: 0;
+
+            width: 100%;
+            height: 100%;
+
+            background: rgba(0, 0, 0, 0.45);
+
+            z-index: 9999;
+
+            align-items: center;
+            justify-content: center;
+        }
+
+
+
+        /* =========================================
+           마커 등록창
+        ========================================= */
+
+        .modal-box {
+            width: 340px;
+
+            max-width: calc(100% - 30px);
+
+            background: white;
+
+            border-radius: 12px;
+
+            padding: 22px;
+
+            box-shadow:
+                0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+
+        .modal-box h2 {
+            margin: 0 0 18px 0;
+
+            font-size: 20px;
+        }
+
+
+        .form-label {
+            display: block;
+
+            font-size: 14px;
+            font-weight: bold;
+
+            margin-top: 13px;
+            margin-bottom: 6px;
+        }
+
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+
+            padding: 9px;
+
+            border: 1px solid #ccc;
+            border-radius: 7px;
+
+            font-size: 14px;
+        }
+
+
+        .form-textarea {
+            height: 90px;
+
+            resize: vertical;
+        }
+
+
+        .modal-buttons {
+            display: flex;
+
+            gap: 8px;
+
+            margin-top: 20px;
+        }
+
+
+        .modal-buttons button {
+            flex: 1;
+
+            padding: 9px;
+
+            border: 0;
+            border-radius: 7px;
+
+            cursor: pointer;
+
+            font-size: 14px;
+        }
+
+
+        #saveMarkerButton {
+            background: #4CAF50;
+
+            color: white;
+        }
+
+
+        #cancelMarkerButton {
+            background: #ddd;
+        }
+
+
+
+        /* =========================================
+           모바일
+        ========================================= */
+
+        @media (max-width: 600px) {
+
+            #sidebar {
+                width: 80%;
+                max-width: 280px;
+            }
+
+        }
+/* =========================================
+   지도 원형 카테고리 마커
+========================================= */
+
+.category-map-marker {
+    background: transparent;
+    border: none;
+}
+
+.category-map-marker-circle {
+    width: 34px;
+    height: 34px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #6f9f55;
+
+    border: 3px solid white;
+    border-radius: 50%;
+
+    box-shadow:
+        0 0 0 2px rgba(0, 0, 0, 0.55),
+        0 2px 5px rgba(0, 0, 0, 0.35);
+
+    font-size: 19px;
+    line-height: 1;
+
+    cursor: pointer;
+}
+/* =========================================
+   마커 이름 툴팁
+========================================= */
+
+.leaflet-tooltip {
+    background: rgba(20, 20, 20, 0.9);
+    color: white;
+
+    border: none;
+    border-radius: 5px;
+
+    padding: 5px 8px;
+
+    font-size: 13px;
+    font-weight: 600;
+
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+}
+
+/* 툴팁 아래쪽 삼각형 */
+
+.leaflet-tooltip-top::before {
+    border-top-color: rgba(20, 20, 20, 0.9);
+}
+/* =========================================
+   마커 클러스터 디자인
+========================================= */
+
+.custom-cluster {
+    background: transparent;
+    border: none;
+}
+
+.custom-cluster-circle {
+    width: 34px;
+    height: 34px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #6f9f55;
+
+    border: 3px solid white;
+    border-radius: 50%;
+
+    box-shadow:
+        0 0 0 2px rgba(0, 0, 0, 0.55),
+        0 2px 5px rgba(0, 0, 0, 0.35);
+
+    color: white;
+
+    font-size: 14px;
+    font-weight: bold;
+
+    line-height: 1;
+
+    cursor: pointer;
+}
+    </style>
+</head>
+
+
+<body>
+
+
+<!-- =========================================
+     지도
+========================================= -->
+
+<div id="map"></div>
+
+
+
+<!-- =========================================
+     왼쪽 메뉴
+========================================= -->
+
+<div id="sidebar">
+
+    <div class="sidebar-title">
+        🗺️ 두근두근타운 맵
+    </div>
+
+
+    <input
+        id="markerSearch"
+        type="text"
+        placeholder="🔎 마커 검색"
+    >
+
+
+    <button
+        class="category-button active"
+        data-category="전체"
+    >
+        ● 전체
+    </button>
+
+<div class="category-grid">
+
+    <button
+        class="category-button"
+        data-category="🌿 채집"
+    >
+        🌿 채집
+    </button>
+
+
+    <button
+        class="category-button"
+        data-category="🐟 물고기"
+    >
+        🐟 물고기
+    </button>
+
+
+    <button
+        class="category-button"
+        data-category="🐞 곤충"
+    >
+        🐞 곤충
+    </button>
+
+
+    <button
+        class="category-button"
+        data-category="🐦 새"
+    >
+        🐦 새
+    </button>
+
+
+    <button
+        class="category-button"
+        data-category="⭐ 기타"
+    >
+        ⭐ 기타
+
+    </button>
+
+</div>
+
+    <button id="closeSidebar">
+        ◀ 메뉴 접기
+    </button>
+
+</div>
+
+
+
+<!-- 메뉴 다시 열기 -->
+
+<button id="openSidebar">
+    ☰
+</button>
+
+
+
+<!-- =========================================
+     마커 등록창
+========================================= -->
+
+<div id="markerModal">
+
+    <div class="modal-box">
+
+        <h2>
+            📍 마커 등록
+        </h2>
+
+
+        <label class="form-label">
+            이름
+        </label>
+
+        <input
+            id="markerName"
+            class="form-input"
+            type="text"
+            placeholder="예: 블루베리"
+        >
+
+
+        <label class="form-label">
+            카테고리
+        </label>
+
+        <select
+            id="markerCategory"
+            class="form-select"
+        >
+
+            <option value="🌿 채집">
+                🌿 채집
+            </option>
+
+            <option value="🐟 물고기">
+                🐟 물고기
+            </option>
+
+            <option value="🐞 곤충">
+                🐞 곤충
+            </option>
+
+            <option value="🐦 새">
+                🐦 새
+            </option>
+
+            <option value="⭐ 기타">
+                ⭐ 기타
+            </option>
+
+        </select>
+
+
+        <label class="form-label">
+            설명
+        </label>
+
+        <textarea
+            id="markerDescription"
+            class="form-textarea"
+            placeholder="이 위치에 대한 설명을 입력해주세요."
+        ></textarea>
+
+
+        <label class="form-label">
+            사진
+        </label>
+
+        <input
+            id="markerImage"
+            class="form-input"
+            type="text"
+            placeholder="예: test.png"
+        >
+
+
+        <div class="modal-buttons">
+
+            <button id="cancelMarkerButton">
+                취소
+            </button>
+
+            <button id="saveMarkerButton">
+                저장
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+
+    // ==========================================
+    // 지도 기본 설정
+    // ==========================================
+
+    const imageWidth = 1000;
+    const imageHeight = 1000;
+
+
+    const map = L.map("map", {
+
+        crs: L.CRS.Simple,
+
+        minZoom: -1,
+        maxZoom: 4,
+
+        zoomSnap: 0.25
+
+    });
+
+
+    const bounds = [
+
+        [0, 0],
+
+        [imageHeight, imageWidth]
+
+    ];
+
+
+    L.imageOverlay(
+        "map.jpg",
+        bounds
+    ).addTo(map);
+
+
+    map.fitBounds(bounds);
+
+
+    map.setMaxBounds([
+
+        [-200, -200],
+
+        [
+            imageHeight + 200,
+            imageWidth + 200
+        ]
+
+    ]);
+
+
+
+    // ==========================================
+    // 저장된 마커
+    // ==========================================
+
+    let savedMarkers = JSON.parse(
+
+        localStorage.getItem(
+            "heartopiaMarkers"
+        ) || "[]"
+
+    );
+
+
+
+    // ==========================================
+    // 현재 화면에 만들어진 Leaflet 마커
+    // ==========================================
+
+    let mapMarkers = [];
+
+// =========================================
+// 마커 클러스터 그룹
+// =========================================
+
+const markerClusterGroup = L.markerClusterGroup({
+
+    showCoverageOnHover: false,
+    spiderfyOnMaxZoom: true,
+    zoomToBoundsOnClick: true,
+
+    iconCreateFunction: function(cluster) {
+
+        const count = cluster.getChildCount();
+
+        return L.divIcon({
+
+            html: `
+                <div class="custom-cluster-circle">
+                    ${count}
+                </div>
+            `,
+
+            className: "custom-cluster",
+
+            iconSize: [34, 34],
+
+            iconAnchor: [17, 17]
+
+        });
+
+    }
+
+});
+map.addLayer(markerClusterGroup);
+
+    // ==========================================
+    // 현재 선택된 필터
+    // ==========================================
+
+    let selectedCategory = "전체";
+
+
+
+    // ==========================================
+    // 현재 클릭한 위치
+    // ==========================================
+
+    let selectedPosition = null;
+
+
+
+    // ==========================================
+    // HTML 요소
+    // ==========================================
+
+    const markerModal =
+        document.getElementById("markerModal");
+
+
+    const markerName =
+        document.getElementById("markerName");
+
+
+    const markerCategory =
+        document.getElementById("markerCategory");
+
+
+    const markerDescription =
+        document.getElementById("markerDescription");
+
+
+    const markerImage =
+        document.getElementById("markerImage");
+
+
+    const saveMarkerButton =
+        document.getElementById("saveMarkerButton");
+
+
+    const cancelMarkerButton =
+        document.getElementById("cancelMarkerButton");
+
+
+    const sidebar =
+        document.getElementById("sidebar");
+
+
+    const closeSidebar =
+        document.getElementById("closeSidebar");
+
+
+    const openSidebar =
+        document.getElementById("openSidebar");
+
+
+    const markerSearch =
+        document.getElementById("markerSearch");
+
+
+    const categoryButtons =
+        document.querySelectorAll(
+            ".category-button"
+        );
+
+// =========================================
+// 카테고리 원형 마커 아이콘
+// =========================================
+
+function createCategoryIcon(category) {
+
+    let emoji = "⭐";
+
+    if (category === "🌿 채집") {
+        emoji = "🌿";
+    }
+
+    else if (category === "🐟 물고기") {
+        emoji = "🐟";
+    }
+
+    else if (category === "🐞 곤충") {
+        emoji = "🐞";
+    }
+
+    else if (category === "🐦 새") {
+        emoji = "🐦";
+    }
+
+    return L.divIcon({
+        className: "category-map-marker",
+
+        html: `
+            <div class="category-map-marker-circle">
+                ${emoji}
+            </div>
+        `,
+
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+        popupAnchor: [0, -20]
+    });
+}
+
+    // ==========================================
+    // 마커 표시 함수
+    // ==========================================
+
+    function addMarkerToMap(markerData) {
+
+
+        const marker = L.marker(
+    [
+        markerData.y,
+        markerData.x
+    ],
+    {
+        icon: createCategoryIcon(
+            markerData.category || "⭐ 기타"
+        )
+    }
+);
+
+
+        // 마커와 원본 데이터 연결
+        marker.markerData =
+            markerData;
+
+
+        // 배열에 저장
+        mapMarkers.push(
+            marker
+        );
+
+
+
+        // ======================================
+        // 팝업
+        // ======================================
+
+        const popupContent =
+            document.createElement("div");
+
+
+        popupContent.className =
+            "marker-popup";
+
+
+
+        // ======================================
+        // 사진
+        // ======================================
+
+        if (markerData.image) {
+
+
+            const imageElement =
+                document.createElement("img");
+
+
+            imageElement.src =
+                "images/" +
+                markerData.image;
+
+
+            imageElement.className =
+                "marker-popup-image";
+
+
+            popupContent.appendChild(
+                imageElement
+            );
+
+        }
+
+
+
+        // ======================================
+        // 이름
+        // ======================================
+
+        const nameElement =
+            document.createElement("div");
+
+
+        nameElement.className =
+            "marker-name";
+
+
+        nameElement.textContent =
+            markerData.name;
+
+
+        popupContent.appendChild(
+            nameElement
+        );
+
+
+
+        // ======================================
+        // 카테고리
+        // ======================================
+
+        const categoryElement =
+            document.createElement("div");
+
+
+        categoryElement.className =
+            "marker-category";
+
+
+        categoryElement.textContent =
+            markerData.category ||
+            "⭐ 기타";
+
+
+        popupContent.appendChild(
+            categoryElement
+        );
+
+
+
+        // ======================================
+        // 설명
+        // ======================================
+
+        if (markerData.description) {
+
+
+            const descriptionElement =
+                document.createElement("div");
+
+
+            descriptionElement.className =
+                "marker-description";
+
+
+            descriptionElement.textContent =
+                markerData.description;
+
+
+            popupContent.appendChild(
+                descriptionElement
+            );
+
+        }
+
+
+
+        // ======================================
+        // 삭제 버튼
+        // ======================================
+
+        const deleteButton =
+            document.createElement("button");
+
+
+        deleteButton.className =
+            "delete-button";
+
+
+        deleteButton.textContent =
+            "🗑️ 마커 삭제";
+
+
+        popupContent.appendChild(
+            deleteButton
+        );
+
+
+
+        deleteButton.addEventListener(
+            "click",
+            function() {
+
+
+                const reallyDelete =
+                    confirm(
+
+                        "'" +
+                        markerData.name +
+                        "' 마커를 삭제할까요?"
+
+                    );
+
+
+                if (!reallyDelete) {
+
+                    return;
+
+                }
+
+
+
+                // 저장 데이터에서 삭제
+
+                const savedIndex =
+                    savedMarkers.indexOf(
+                        markerData
+                    );
+
+
+                if (savedIndex !== -1) {
+
+                    savedMarkers.splice(
+                        savedIndex,
+                        1
+                    );
+
+                }
+
+
+
+                localStorage.setItem(
+
+                    "heartopiaMarkers",
+
+                    JSON.stringify(
+                        savedMarkers
+                    )
+
+                );
+
+
+
+// 클러스터 그룹에서 삭제
+if (
+    markerClusterGroup.hasLayer(marker)
+) {
+
+    markerClusterGroup.removeLayer(
+        marker
+    );
+
+}
+
+
+
+                // mapMarkers 배열에서도 삭제
+
+                const markerIndex =
+                    mapMarkers.indexOf(
+                        marker
+                    );
+
+
+                if (markerIndex !== -1) {
+
+                    mapMarkers.splice(
+                        markerIndex,
+                        1
+                    );
+
+                }
+
+            }
+        );
+
+
+
+        marker.bindPopup(
+            popupContent
+        );
+marker.bindTooltip(
+    markerData.name,
+    {
+        direction: "top",
+        offset: [0, -22],
+        opacity: 0.95
+    }
+);
+
+        // 현재 필터에 맞으면 지도에 표시
+        applyFilters();
+
+    }
+
+
+
+    // ==========================================
+    // 필터 적용
+    // ==========================================
+
+    function applyFilters() {
+
+
+        const searchText =
+            markerSearch.value
+                .trim()
+                .toLowerCase();
+
+
+
+        mapMarkers.forEach(
+            function(marker) {
+
+
+                const data =
+                    marker.markerData;
+
+
+                const category =
+                    data.category ||
+                    "⭐ 기타";
+
+
+                const name =
+                    (data.name || "")
+                        .toLowerCase();
+
+
+                const description =
+                    (data.description || "")
+                        .toLowerCase();
+
+
+
+                // 카테고리 조건
+                const categoryMatch =
+
+                    selectedCategory ===
+                    "전체"
+
+                    ||
+
+                    category ===
+                    selectedCategory;
+
+
+
+                // 검색 조건
+                const searchMatch =
+
+                    searchText === ""
+
+                    ||
+
+                    name.includes(
+                        searchText
+                    )
+
+                    ||
+
+                    description.includes(
+                        searchText
+                    );
+
+
+
+// 둘 다 만족하면 표시
+if (
+    categoryMatch &&
+    searchMatch
+) {
+
+    if (
+        !markerClusterGroup.hasLayer(
+            marker
+        )
+    ) {
+
+        markerClusterGroup.addLayer(
+            marker
+        );
+
+    }
+
+} else {
+
+    if (
+        markerClusterGroup.hasLayer(
+            marker
+        )
+    ) {
+
+        markerClusterGroup.removeLayer(
+            marker
+        );
+
+    }
+
+}
+
+            }
+        );
+
+    }
+
+
+
+    // ==========================================
+    // 기존 저장된 마커 표시
+    // ==========================================
+
+    savedMarkers.forEach(
+        function(markerData) {
+
+            addMarkerToMap(
+                markerData
+            );
+
+        }
+    );
+
+
+
+    // ==========================================
+    // 카테고리 버튼
+    // ==========================================
+
+    categoryButtons.forEach(
+        function(button) {
+
+
+            button.addEventListener(
+                "click",
+                function() {
+
+
+                    selectedCategory =
+                        button.dataset.category;
+
+
+
+                    // 모든 버튼 선택 해제
+
+                    categoryButtons.forEach(
+                        function(otherButton) {
+
+                            otherButton.classList.remove(
+                                "active"
+                            );
+
+                        }
+                    );
+
+
+
+                    // 누른 버튼 선택
+
+                    button.classList.add(
+                        "active"
+                    );
+
+
+
+                    applyFilters();
+
+                }
+            );
+
+        }
+    );
+
+
+
+    // ==========================================
+    // 검색
+    // ==========================================
+
+    markerSearch.addEventListener(
+        "input",
+        function() {
+
+            applyFilters();
+
+        }
+    );
+
+
+
+    // ==========================================
+    // 메뉴 접기
+    // ==========================================
+
+    closeSidebar.addEventListener(
+        "click",
+        function() {
+
+
+            sidebar.classList.add(
+                "closed"
+            );
+
+
+            openSidebar.classList.add(
+                "visible"
+            );
+
+        }
+    );
+
+
+
+    // ==========================================
+    // 메뉴 열기
+    // ==========================================
+
+    openSidebar.addEventListener(
+        "click",
+        function() {
+
+
+            sidebar.classList.remove(
+                "closed"
+            );
+
+
+            openSidebar.classList.remove(
+                "visible"
+            );
+
+        }
+    );
+
+
+
+    // ==========================================
+    // 지도 클릭 → 등록창
+    // ==========================================
+
+    map.on(
+        "click",
+        function(e) {
+
+
+            selectedPosition =
+                e.latlng;
+
+
+
+            markerName.value =
+                "";
+
+
+            markerCategory.value =
+                "🌿 채집";
+
+
+            markerDescription.value =
+                "";
+
+
+            markerImage.value =
+                "";
+
+
+
+            markerModal.style.display =
+                "flex";
+
+
+            markerName.focus();
+
+        }
+    );
+
+
+
+    // ==========================================
+    // 마커 저장
+    // ==========================================
+
+    saveMarkerButton.addEventListener(
+        "click",
+        function() {
+
+
+            const name =
+                markerName.value.trim();
+
+
+
+            if (name === "") {
+
+
+                alert(
+                    "마커 이름을 입력해주세요."
+                );
+
+
+                markerName.focus();
+
+
+                return;
+
+            }
+
+
+
+            if (!selectedPosition) {
+
+                return;
+
+            }
+
+
+
+            const markerData = {
+
+
+                name:
+                    name,
+
+
+                category:
+                    markerCategory.value,
+
+
+                description:
+                    markerDescription.value.trim(),
+
+
+                image:
+                    markerImage.value.trim(),
+
+
+                // 내부 위치 데이터
+                // 사용자 화면에는 표시하지 않음
+
+                x:
+                    selectedPosition.lng,
+
+
+                y:
+                    selectedPosition.lat
+
+            };
+
+
+
+            // 저장
+
+            savedMarkers.push(
+                markerData
+            );
+
+
+            localStorage.setItem(
+
+                "heartopiaMarkers",
+
+                JSON.stringify(
+                    savedMarkers
+                )
+
+            );
+
+
+
+            // 지도에 추가
+
+            addMarkerToMap(
+                markerData
+            );
+
+
+
+            // 등록창 닫기
+
+            closeMarkerModal();
+
+        }
+    );
+
+
+
+    // ==========================================
+    // 취소
+    // ==========================================
+
+    cancelMarkerButton.addEventListener(
+        "click",
+        function() {
+
+            closeMarkerModal();
+
+        }
+    );
+
+
+
+    // ==========================================
+    // 등록창 닫기
+    // ==========================================
+
+    function closeMarkerModal() {
+
+
+        markerModal.style.display =
+            "none";
+
+
+        selectedPosition =
+            null;
+
+    }
+
+
+
+    // ==========================================
+    // 등록창 바깥 클릭
+    // ==========================================
+
+    markerModal.addEventListener(
+        "click",
+        function(e) {
+
+
+            if (
+                e.target ===
+                markerModal
+            ) {
+
+                closeMarkerModal();
+
+            }
+
+        }
+    );
+
+
+
+    // ==========================================
+    // ESC → 등록창 닫기
+    // ==========================================
+
+    document.addEventListener(
+        "keydown",
+        function(e) {
+
+
+            if (
+                e.key === "Escape" &&
+                markerModal.style.display ===
+                "flex"
+            ) {
+
+                closeMarkerModal();
+
+            }
+
+        }
+    );
+
+</script>
+
+</body>
+</html>
