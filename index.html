@@ -690,6 +690,27 @@
     background: #2f8f50;
     color: white;
 }
+/* 채집 루트 완성 버튼 */
+
+#finishRouteButton {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px;
+
+    background: #2f8f50;
+    color: white;
+
+    border: none;
+    border-radius: 8px;
+
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#finishRouteButton:hover {
+    background: #267440;
+}
+        
     </style>
 </head>
 
@@ -786,7 +807,11 @@
 <button id="toggleRouteEdit">
     🌿 채집 루트 만들기
 </button>
-
+<!-- 채집 루트 완성 버튼 -->
+<button id="finishRouteButton" style="display:none;">
+    ✔ 루트 완성
+</button>
+ 
     <button id="closeSidebar">
         ◀ 메뉴 접기
     </button>
@@ -1947,14 +1972,32 @@ const routeLine = L.polyline([], {
     weight: 5,
     opacity: 0.95
 }).addTo(map);
+// =========================================
+// 완성된 채집 루트 저장소
+// =========================================
 
+const completedRoutes = L.layerGroup().addTo(map);
+
+let savedRoutes = JSON.parse(
+    localStorage.getItem("heartopiaRoutes") || "[]"
+);
+
+function saveRoutes() {
+    localStorage.setItem(
+        "heartopiaRoutes",
+        JSON.stringify(savedRoutes)
+    );
+}
+    
 // =========================================
 // 채집 루트 버튼 연결
 // =========================================
 
 const toggleRouteEditButton =
     document.getElementById("toggleRouteEdit");
-
+// 루트 완성 버튼
+const finishRouteButton =
+    document.getElementById("finishRouteButton");
 toggleRouteEditButton.addEventListener("click", function() {
 
     // 구획선 수정 중에는 루트 시작 금지
@@ -1973,14 +2016,14 @@ toggleRouteEditButton.addEventListener("click", function() {
     isRouteEditMode = !isRouteEditMode;
 
     if (isRouteEditMode) {
-
+    finishRouteButton.style.display = "block";
         toggleRouteEditButton.textContent =
             "🌿 루트 그리기 종료";
 
         toggleRouteEditButton.classList.add("route-active");
 
     } else {
-
+        finishRouteButton.style.display = "none";
         toggleRouteEditButton.textContent =
             "🌿 채집 루트 만들기";
 
@@ -2002,7 +2045,88 @@ toggleRouteEditButton.addEventListener("click", function() {
 // =========================================
 // 지도 클릭으로 채집 루트 경유지 추가
 // =========================================
+// =========================================
+// 채집 루트 완성 및 저장
+// =========================================
 
+finishRouteButton.addEventListener("click", function() {
+
+    // 최소 2개 경유지 필요
+    if (routePoints.length < 2) {
+        alert("루트는 최소 2개의 지점을 연결해야 해요.");
+        return;
+    }
+
+    // 루트 이름 입력
+    const routeName = prompt("채집 루트 이름을 입력해 주세요.");
+
+    if (routeName === null) {
+        return;
+    }
+
+    if (!routeName.trim()) {
+        alert("루트 이름을 입력해 주세요.");
+        return;
+    }
+
+    // 좌표를 일반 배열로 변환
+    const points = routePoints.map(function(point) {
+        return [point.lat, point.lng];
+    });
+
+    // 완성된 루트 생성
+    L.polyline(points, {
+        color: "#2f9e58",
+        weight: 5,
+        opacity: 0.95
+    })
+    .bindTooltip(routeName.trim())
+    .addTo(completedRoutes);
+
+    // 저장 데이터 추가
+    savedRoutes.push({
+        id: Date.now(),
+        name: routeName.trim(),
+        points: points
+    });
+
+    saveRoutes();
+
+    // 임시 루트 초기화
+    routePoints = [];
+    routeLine.setLatLngs([]);
+
+    routeVertexMarkers.forEach(function(marker) {
+        map.removeLayer(marker);
+    });
+
+    routeVertexMarkers = [];
+
+    alert("🌿 채집 루트가 저장되었어요!");
+
+});
+// =========================================
+// 저장된 채집 루트 불러오기
+// =========================================
+
+function loadRoutes() {
+
+    savedRoutes.forEach(function(route) {
+
+        L.polyline(route.points, {
+            color: "#2f9e58",
+            weight: 5,
+            opacity: 0.95
+        })
+        .bindTooltip(route.name)
+        .addTo(completedRoutes);
+
+    });
+
+}
+
+// 페이지 시작 시 저장된 루트 표시
+loadRoutes();
 map.on("click", function(e) {
 
     // 루트 모드가 아니면 실행하지 않음
