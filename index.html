@@ -660,7 +660,36 @@
         0 0 0 3px rgba(255, 159, 67, 0.25),
         0 0 8px rgba(0, 0, 0, 0.3);
 }
-        
+
+
+/* =========================================
+   채집 루트 만들기 버튼
+========================================= */
+
+#toggleRouteEdit {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+
+    background: #e8f5e9;
+    color: #287440;
+
+    border: 1px solid #62b675;
+    border-radius: 8px;
+
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#toggleRouteEdit:hover {
+    background: #d4edda;
+}
+
+#toggleRouteEdit.route-active {
+    background: #2f8f50;
+    color: white;
+}
     </style>
 </head>
 
@@ -751,6 +780,11 @@
 
 <button id="toggleRegionEdit">
     🟡 구역 만들기
+</button>
+
+    <!-- 채집 루트 만들기 -->
+<button id="toggleRouteEdit">
+    🌿 채집 루트 만들기
 </button>
 
     <button id="closeSidebar">
@@ -1619,8 +1653,8 @@ if (
         
         function(e) {
             
-            // 구역 편집 중에는 마커 등록창 열지 않기
-            if (isRegionEditMode) {
+            // 구획선 또는 채집 루트 모드에서는 마커 등록 금지
+            if (isRegionEditMode || isRouteEditMode) {
                 return;
             }
 
@@ -1894,6 +1928,159 @@ function createRegionVertex(latlng) {
 
 const completedRegions = L.layerGroup().addTo(map);
 
+// =========================================
+// 채집 루트 그리기 기본 설정
+// =========================================
+
+// 루트 그리기 모드 여부
+let isRouteEditMode = false;
+
+// 현재 그리고 있는 루트 좌표
+let routePoints = [];
+
+// 루트 경유지 핀
+let routeVertexMarkers = [];
+
+// 초록색 루트 선
+const routeLine = L.polyline([], {
+    color: "#2f9e58",
+    weight: 5,
+    opacity: 0.95
+}).addTo(map);
+
+// =========================================
+// 채집 루트 버튼 연결
+// =========================================
+
+const toggleRouteEditButton =
+    document.getElementById("toggleRouteEdit");
+
+toggleRouteEditButton.addEventListener("click", function() {
+
+    // 구획선 수정 중에는 루트 시작 금지
+    if (activeRegionEdit !== null) {
+        alert("구역 수정을 먼저 완료해 주세요.");
+        return;
+    }
+
+    // 구획선 그리기 모드와 동시 실행 금지
+    if (isRegionEditMode) {
+        alert("구역 만들기를 먼저 종료해 주세요.");
+        return;
+    }
+
+    // 루트 모드 전환
+    isRouteEditMode = !isRouteEditMode;
+
+    if (isRouteEditMode) {
+
+        toggleRouteEditButton.textContent =
+            "🌿 루트 그리기 종료";
+
+        toggleRouteEditButton.classList.add("route-active");
+
+    } else {
+
+        toggleRouteEditButton.textContent =
+            "🌿 채집 루트 만들기";
+
+        toggleRouteEditButton.classList.remove("route-active");
+
+        // 아직 저장 기능이 없으므로 임시 경로 초기화
+        routePoints = [];
+        routeLine.setLatLngs([]);
+
+        routeVertexMarkers.forEach(function(marker) {
+            map.removeLayer(marker);
+        });
+
+        routeVertexMarkers = [];
+    }
+
+});
+
+// =========================================
+// 채집 루트 버튼 연결
+// =========================================
+
+const toggleRouteEditButton =
+    document.getElementById("toggleRouteEdit");
+
+toggleRouteEditButton.addEventListener("click", function() {
+
+    // 구획선 수정 중에는 루트 시작 금지
+    if (activeRegionEdit !== null) {
+        alert("구역 수정을 먼저 완료해 주세요.");
+        return;
+    }
+
+    // 구획선 그리기 모드와 동시 실행 금지
+    if (isRegionEditMode) {
+        alert("구역 만들기를 먼저 종료해 주세요.");
+        return;
+    }
+
+    // 루트 모드 전환
+    isRouteEditMode = !isRouteEditMode;
+
+    if (isRouteEditMode) {
+
+        toggleRouteEditButton.textContent =
+            "🌿 루트 그리기 종료";
+
+        toggleRouteEditButton.classList.add("route-active");
+
+    } else {
+
+        toggleRouteEditButton.textContent =
+            "🌿 채집 루트 만들기";
+
+        toggleRouteEditButton.classList.remove("route-active");
+
+        // 아직 저장 기능이 없으므로 임시 경로 초기화
+        routePoints = [];
+        routeLine.setLatLngs([]);
+
+        routeVertexMarkers.forEach(function(marker) {
+            map.removeLayer(marker);
+        });
+
+        routeVertexMarkers = [];
+    }
+
+});
+
+// =========================================
+// 지도 클릭으로 채집 루트 경유지 추가
+// =========================================
+
+map.on("click", function(e) {
+
+    // 루트 모드가 아니면 실행하지 않음
+    if (!isRouteEditMode) {
+        return;
+    }
+
+    // 클릭한 좌표 저장
+    routePoints.push(e.latlng);
+
+    // 초록색 루트 선 갱신
+    routeLine.setLatLngs(routePoints);
+
+    // 경유지 핀 만들기
+    const vertex = L.circleMarker(e.latlng, {
+        radius: 6,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#2f9e58",
+        fillOpacity: 1,
+        bubblingMouseEvents: false
+    }).addTo(map);
+
+    routeVertexMarkers.push(vertex);
+
+});
+    
 // 현재 수정 중인 구획선
 let activeRegionEdit = null;
 
