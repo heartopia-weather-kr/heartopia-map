@@ -500,6 +500,45 @@
 
     cursor: pointer;
 }
+
+/* =========================================
+   지역 구획 편집 버튼
+========================================= */
+
+#toggleRegionEdit {
+    width: 100%;
+    height: 45px;
+
+    margin-top: 18px;
+
+    border: 2px solid #e5c65c;
+    border-radius: 10px;
+
+    background: #fff8dc;
+    color: #775b15;
+
+    font-size: 14px;
+    font-weight: bold;
+
+    cursor: pointer;
+
+    transition: 0.2s;
+}
+
+/* 마우스를 올렸을 때 */
+
+#toggleRegionEdit:hover {
+    background: #ffedab;
+}
+
+/* 구역 편집 모드가 켜졌을 때 */
+
+#toggleRegionEdit.active {
+    background: #e5c65c;
+    color: #332800;
+    border-color: #c7a63c;
+}
+        
     </style>
 </head>
 
@@ -583,6 +622,14 @@
     </button>
 
 </div>
+
+<!-- =========================================
+     지역 구획 편집 버튼
+========================================= -->
+
+<button id="toggleRegionEdit">
+    🟡 구역 만들기
+</button>
 
     <button id="closeSidebar">
         ◀ 메뉴 접기
@@ -1657,6 +1704,37 @@ if (
 
         }
     );
+
+// =========================================
+// 지역 구획 편집 모드 ON / OFF
+// =========================================
+
+let isRegionEditMode = false;
+
+const toggleRegionEditButton =
+    document.getElementById("toggleRegionEdit");
+
+toggleRegionEditButton.addEventListener("click", function() {
+
+    isRegionEditMode = !isRegionEditMode;
+
+    if (isRegionEditMode) {
+
+        toggleRegionEditButton.classList.add("active");
+
+        toggleRegionEditButton.textContent =
+            "🟡 구역 편집 종료";
+
+    } else {
+
+        toggleRegionEditButton.classList.remove("active");
+
+        toggleRegionEditButton.textContent =
+            "🟡 구역 만들기";
+
+    }
+
+});
 
 </script>
 
