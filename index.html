@@ -1483,8 +1483,13 @@ if (
 
     map.on(
         "click",
+        
         function(e) {
-
+            
+            // 구역 편집 중에는 마커 등록창 열지 않기
+            if (isRegionEditMode) {
+                return;
+            }
 
             selectedPosition =
                 e.latlng;
@@ -1710,6 +1715,39 @@ if (
 // =========================================
 
 let isRegionEditMode = false;
+
+// =========================================
+// 지역 구획선 그리기
+// =========================================
+
+// 현재 그리고 있는 구역의 좌표
+let regionPoints = [];
+
+// 지도에 표시할 임시 구획선
+let regionLine = L.polyline([], {
+    color: "#fff18a",
+    weight: 3,
+    opacity: 1
+}).addTo(map);
+
+// 지도 클릭 시 구획선 좌표 추가
+map.on("click", function(e) {
+
+    // 구역 편집 모드가 아니면 실행하지 않음
+    if (!isRegionEditMode) {
+        return;
+    }
+
+    // 클릭한 위치 저장
+    regionPoints.push([
+        e.latlng.lat,
+        e.latlng.lng
+    ]);
+
+    // 노란색 선 업데이트
+    regionLine.setLatLngs(regionPoints);
+
+});
 
 const toggleRegionEditButton =
     document.getElementById("toggleRegionEdit");
