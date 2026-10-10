@@ -570,6 +570,83 @@
     cursor: not-allowed;
 }
 
+/* =========================================
+   구역 이름 표시 디자인
+========================================= */
+
+.region-label {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+
+    color: #fff8c6;
+    font-size: 15px;
+    font-weight: bold;
+
+    text-shadow:
+        -1px -1px 2px #66551c,
+         1px -1px 2px #66551c,
+        -1px  1px 2px #66551c,
+         1px  1px 2px #66551c;
+
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* 기본 말풍선 꼬리 제거 */
+.region-label::before {
+    display: none;
+}
+
+/* =========================================
+   구획선 꼭짓점 핀 디자인
+========================================= */
+
+.region-vertex-icon {
+    background: transparent;
+    border: none;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 노란색 꼭짓점 */
+.region-vertex-dot {
+    width: 12px;
+    height: 12px;
+
+    background: #fff18a;
+    border: 2px solid #b89527;
+    border-radius: 50%;
+
+    box-sizing: border-box;
+
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.25);
+
+    cursor: grab;
+}
+
+/* =========================================
+   첫 번째 꼭짓점 강조
+========================================= */
+
+.region-vertex-start .region-vertex-dot {
+    width: 16px;
+    height: 16px;
+
+    background: #ffe45c;
+    border: 3px solid #a67c00;
+
+    box-shadow:
+        0 0 0 3px rgba(255, 228, 92, 0.3),
+        0 0 8px rgba(0, 0, 0, 0.25);
+}
+
+/* 드래그 중 */
+.region-vertex-icon:active .region-vertex-dot {
+    cursor: grabbing;
+}
     </style>
 </head>
 
@@ -1765,6 +1842,148 @@ let isRegionEditMode = false;
 // 현재 그리고 있는 구역의 좌표
 let regionPoints = [];
 
+// =========================================
+// 구획선 꼭짓점 핀 보관
+// =========================================
+
+// 현재 그리고 있는 구역의 꼭짓점 핀들
+let regionVertexMarkers = [];
+
+// 꼭짓점 핀 디자인
+// =========================================
+// 드래그 가능한 구획선 꼭짓점 핀
+// =========================================
+
+function createRegionVertex(latlng) {
+
+    const vertexIcon = L.divIcon({
+        className: "region-vertex-icon",
+        html: '<div class="region-vertex-dot"></div>',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    });
+
+    const vertex = L.marker(latlng, {
+        icon: vertexIcon,
+        draggable: true,
+        bubblingMouseEvents: false
+    });
+
+    vertex.addTo(map);
+
+    return vertex;
+}
+
+// =========================================
+// 완성된 구획선을 보관할 레이어
+// =========================================
+
+const completedRegions = L.layerGroup().addTo(map);
+
+// =========================================
+// 구획선 데이터 저장소
+// =========================================
+
+// 저장된 구획선 데이터 불러오기
+let savedRegions = JSON.parse(
+    localStorage.getItem("heartopiaRegions") || "[]"
+);
+
+// 구획선 데이터를 브라우저에 저장
+function saveRegions() {
+    localStorage.setItem(
+        "heartopiaRegions",
+        JSON.stringify(savedRegions)
+    );
+}
+
+// =========================================
+// 저장된 구획선 지도에 복원
+// =========================================
+
+function loadRegions() {
+
+    savedRegions.forEach(function(region) {
+
+        // 저장된 좌표로 구역 생성
+        const polygon = L.polygon(region.points, {
+            color: "#fff18a",
+            weight: 3,
+            opacity: 1,
+            fillOpacity: 0
+        });
+
+        // 지도에 추가
+        completedRegions.addLayer(polygon);
+
+        // 복원된 구획선에도 삭제 팝업 연결
+        addRegionDeletePopup(
+            polygon,
+            region.id,
+            region.name
+        );
+
+        // 저장된 이름 표시
+        polygon.bindTooltip(region.name, {
+            permanent: true,
+            direction: "center",
+            className: "region-label"
+        });
+
+    });
+
+}
+
+
+// =========================================
+// 구획선 삭제 기능
+// =========================================
+
+function addRegionDeletePopup(polygon, regionId, regionName) {
+
+    const popupContainer = document.createElement("div");
+
+    const title = document.createElement("strong");
+    title.textContent = regionName;
+
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "🗑️ 구역 삭제";
+
+    deleteButton.style.marginTop = "10px";
+    deleteButton.style.padding = "8px";
+    deleteButton.style.cursor = "pointer";
+
+    deleteButton.addEventListener("click", function() {
+
+        if (!confirm("이 구역을 삭제할까요?")) {
+            return;
+        }
+
+        savedRegions = savedRegions.filter(
+            region => region.id !== regionId
+        );
+
+        saveRegions();
+        completedRegions.removeLayer(polygon);
+        map.closePopup();
+    });
+
+    popupContainer.appendChild(title);
+    popupContainer.appendChild(document.createElement("br"));
+    popupContainer.appendChild(deleteButton);
+
+    polygon.bindPopup(popupContainer);
+
+    // 구획선 클릭이 지도 클릭으로 전달되지 않도록 방지
+    polygon.on("click", function(e) {
+        L.DomEvent.stopPropagation(e);
+    });
+    
+}
+// 페이지 시작 시 저장된 구획선 복원
+loadRegions();
+
+
 // 지도에 표시할 임시 구획선
 let regionLine = L.polyline([], {
     color: "#fff18a",
@@ -1794,6 +2013,71 @@ map.on("click", function(e) {
     // 노란색 선 업데이트
     regionLine.setLatLngs(regionPoints);
 
+    // 클릭한 위치에 노란색 꼭짓점 핀 생성
+    const vertex = createRegionVertex(e.latlng);
+
+    // 생성된 핀을 배열에 보관
+    regionVertexMarkers.push(vertex);
+
+    // =========================================
+// 꼭짓점 드래그 시 구획선 실시간 수정
+// =========================================
+
+// 현재 꼭짓점의 순서 기억
+const vertexIndex = regionVertexMarkers.length - 1;
+
+vertex.on("drag", function(e) {
+
+    // 드래그 중인 핀의 새 위치
+    const newPosition = e.target.getLatLng();
+
+    // 해당 꼭짓점 좌표 변경
+    regionPoints[vertexIndex] = [
+        newPosition.lat,
+        newPosition.lng
+    ];
+
+    // 변경된 좌표로 구획선 다시 그리기
+    regionLine.setLatLngs(regionPoints);
+
+});
+
+    // =========================================
+    // 첫 번째 꼭짓점 클릭으로 구역 완성
+    // =========================================
+
+// 첫 번째 꼭짓점에만 완성 기능 연결
+if (regionVertexMarkers.length === 1) {
+
+    vertex.getElement().classList.add("region-vertex-start");
+
+    
+
+    vertex.bindTooltip("첫 번째 점을 다시 누르면 구역 완성", {
+        direction: "top"
+    });
+
+    vertex.on("click", function(e) {
+
+        // 지도 클릭 이벤트로 전달 방지
+        L.DomEvent.stopPropagation(e);
+
+        // 편집 모드에서만 작동
+        if (!isRegionEditMode) {
+            return;
+        }
+
+        // 최소 3개의 꼭짓점 필요
+        if (regionPoints.length < 3) {
+            alert("구역을 완성하려면 최소 3개의 점이 필요해요.");
+            return;
+        }
+
+        // 기존 구역 완성 함수 실행
+        finishRegion();
+    });
+}
+
 });
 
 const toggleRegionEditButton =
@@ -1807,24 +2091,95 @@ const finishRegionButton =
 // 구역 완성 기능
 // =========================================
 
+// =========================================
+// 구역 완성 기능
+// =========================================
+
 function finishRegion() {
 
-    // 구역을 만들려면 최소 3개의 점이 필요
+    // 최소 3개의 점이 필요
     if (regionPoints.length < 3) {
         alert("구역을 만들려면 최소 3개의 점을 찍어주세요.");
         return;
     }
 
-    // 마지막 점과 첫 번째 점 연결
-    regionLine.setLatLngs([
-        ...regionPoints,
-        regionPoints[0]
-    ]);
 
-    // 완성 버튼 비활성화
-    finishRegionButton.disabled = true;
+// =========================================
+// 완성할 구역의 이름 입력
+// =========================================
 
-    alert("구역 경계가 완성되었습니다!");
+const regionName = prompt("구역 이름을 입력해 주세요.");
+
+if (regionName === null) {
+    return;
+}
+
+if (regionName.trim() === "") {
+    alert("구역 이름을 입력해 주세요.");
+    return;
+}
+
+    // 완성된 구역을 별도의 도형으로 생성
+    const completedRegion = L.polygon(regionPoints, {
+        color: "#fff18a",
+        weight: 3,
+        opacity: 1,
+        fillOpacity: 0
+    });
+
+    // 완성된 구역 보관
+    completedRegions.addLayer(completedRegion);
+
+    // =========================================
+    // 완성된 구역 데이터 저장
+    // =========================================
+
+    // 구획선 고유 ID 생성
+const regionId = Date.now();
+
+// 완성된 구역 데이터 저장
+savedRegions.push({
+    id: regionId,
+    name: regionName.trim(),
+    points: regionPoints.map(point => [...point])
+});
+
+// 브라우저에 저장
+saveRegions();
+
+// 완성된 구획선에 삭제 팝업 연결
+addRegionDeletePopup(
+    completedRegion,
+    regionId,
+    regionName.trim()
+);
+
+    // 구역 이름을 지도에 표시
+    completedRegion.bindTooltip(regionName.trim(), {
+        permanent: true,
+        direction: "center",
+        className: "region-label"
+    });
+
+    // 임시 구획선 초기화
+    regionPoints = [];
+    regionLine.setLatLngs([]);
+
+    // =========================================
+    // 완성된 구역의 임시 꼭짓점 핀 정리
+    // =========================================
+
+    regionVertexMarkers.forEach(function(vertex) {
+        map.removeLayer(vertex);
+    });
+
+// 꼭짓점 배열 초기화
+regionVertexMarkers = [];
+
+    // 다음 구역도 완성할 수 있도록 버튼 활성화
+    finishRegionButton.disabled = false;
+
+    alert("구역이 완성되었습니다! 다음 구역도 그릴 수 있어요.");
 }
 
 // 구역 완성 버튼 클릭
