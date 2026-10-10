@@ -2000,57 +2000,6 @@ toggleRouteEditButton.addEventListener("click", function() {
 });
 
 // =========================================
-// 채집 루트 버튼 연결
-// =========================================
-
-const toggleRouteEditButton =
-    document.getElementById("toggleRouteEdit");
-
-toggleRouteEditButton.addEventListener("click", function() {
-
-    // 구획선 수정 중에는 루트 시작 금지
-    if (activeRegionEdit !== null) {
-        alert("구역 수정을 먼저 완료해 주세요.");
-        return;
-    }
-
-    // 구획선 그리기 모드와 동시 실행 금지
-    if (isRegionEditMode) {
-        alert("구역 만들기를 먼저 종료해 주세요.");
-        return;
-    }
-
-    // 루트 모드 전환
-    isRouteEditMode = !isRouteEditMode;
-
-    if (isRouteEditMode) {
-
-        toggleRouteEditButton.textContent =
-            "🌿 루트 그리기 종료";
-
-        toggleRouteEditButton.classList.add("route-active");
-
-    } else {
-
-        toggleRouteEditButton.textContent =
-            "🌿 채집 루트 만들기";
-
-        toggleRouteEditButton.classList.remove("route-active");
-
-        // 아직 저장 기능이 없으므로 임시 경로 초기화
-        routePoints = [];
-        routeLine.setLatLngs([]);
-
-        routeVertexMarkers.forEach(function(marker) {
-            map.removeLayer(marker);
-        });
-
-        routeVertexMarkers = [];
-    }
-
-});
-
-// =========================================
 // 지도 클릭으로 채집 루트 경유지 추가
 // =========================================
 
