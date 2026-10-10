@@ -2075,21 +2075,30 @@ finishRouteButton.addEventListener("click", function() {
     });
 
     // 완성된 루트 생성
-    L.polyline(points, {
+    const completedRoute = L.polyline(points, {
         color: "#2f9e58",
         weight: 5,
         opacity: 0.95
     })
     .bindTooltip(routeName.trim())
     .addTo(completedRoutes);
+    
+// 새 루트 고유 번호
+const routeId = Date.now();
 
-    // 저장 데이터 추가
-    savedRoutes.push({
-        id: Date.now(),
-        name: routeName.trim(),
-        points: points
-    });
+// 저장 데이터 추가
+savedRoutes.push({
+    id: routeId,
+    name: routeName.trim(),
+    points: points
+});
 
+// 새 루트에 삭제 팝업 연결
+addRouteDeletePopup(
+    completedRoute,
+    routeId,
+    routeName.trim()
+);
     saveRoutes();
 
     // 임시 루트 초기화
@@ -2109,17 +2118,83 @@ finishRouteButton.addEventListener("click", function() {
 // 저장된 채집 루트 불러오기
 // =========================================
 
-function loadRoutes() {
+// =========================================
+// 저장된 채집 루트 삭제 팝업
+// =========================================
+
+function addRouteDeletePopup(polyline, routeId, routeName) {
+
+    // 팝업 전체
+    const popupContainer = document.createElement("div");
+
+    // 루트 이름
+    const title = document.createElement("strong");
+    title.textContent = "🌿 " + routeName;
+
+    // 삭제 버튼
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "🗑 루트 삭제";
+
+    deleteButton.style.display = "block";
+    deleteButton.style.marginTop = "10px";
+    deleteButton.style.padding = "8px 12px";
+    deleteButton.style.cursor = "pointer";
+
+    // 삭제 버튼 클릭
+    deleteButton.addEventListener("click", function() {
+
+        const confirmed = confirm(
+            "정말 '" + routeName + "' 루트를 삭제할까요?"
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        // 저장된 루트 데이터 삭제
+        savedRoutes = savedRoutes.filter(function(route) {
+            return route.id !== routeId;
+        });
+
+        saveRoutes();
+
+        // 지도에서 루트 제거
+        completedRoutes.removeLayer(polyline);
+
+        map.closePopup();
+
+        alert("🌿 채집 루트가 삭제되었어요!");
+
+    });
+
+    // 팝업 구성
+    popupContainer.appendChild(title);
+    popupContainer.appendChild(deleteButton);
+
+    // 루트에 팝업 연결
+    polyline.bindPopup(popupContainer);
+
+}
+    
+    function loadRoutes() {
 
     savedRoutes.forEach(function(route) {
 
-        L.polyline(route.points, {
+        // 저장된 루트 다시 생성
+        const polyline = L.polyline(route.points, {
             color: "#2f9e58",
             weight: 5,
             opacity: 0.95
         })
         .bindTooltip(route.name)
         .addTo(completedRoutes);
+
+        // 기존 루트에도 삭제 기능 연결
+        addRouteDeletePopup(
+            polyline,
+            route.id,
+            route.name
+        );
 
     });
 
