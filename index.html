@@ -647,6 +647,20 @@
 .region-vertex-icon:active .region-vertex-dot {
     cursor: grabbing;
 }
+
+/* =========================================
+   구획선 수정용 꼭짓점
+========================================= */
+
+.region-vertex-edit .region-vertex-dot {
+    background: #ffb347;
+    border-color: #b96519;
+
+    box-shadow:
+        0 0 0 3px rgba(255, 159, 67, 0.25),
+        0 0 8px rgba(0, 0, 0, 0.3);
+}
+        
     </style>
 </head>
 
@@ -1880,6 +1894,9 @@ function createRegionVertex(latlng) {
 
 const completedRegions = L.layerGroup().addTo(map);
 
+// 현재 수정 중인 구획선
+let activeRegionEdit = null;
+
 // =========================================
 // 구획선 데이터 저장소
 // =========================================
@@ -1946,6 +1963,192 @@ function addRegionDeletePopup(polygon, regionId, regionName) {
     const title = document.createElement("strong");
     title.textContent = regionName;
 
+    // =========================================
+    // 구획선 수정 버튼 생성
+    // =========================================
+    
+    const editButton = document.createElement("button");
+    
+    editButton.textContent = "✏️ 구역 수정";
+
+    // =========================================
+    // 구획선 수정 버튼 클릭
+    // =========================================
+    
+    editButton.addEventListener("click", function() {
+
+        // 이미 수정 중인 구역이면 중복 실행 방지
+        if (polygon.editVertices && polygon.editVertices.length > 0) {
+            alert("이미 이 구역을 수정하고 있어요!");
+        return;
+        }
+
+        // 다른 구역을 수정 중이면 실행 방지
+        if (activeRegionEdit !== null) {
+            alert("다른 구역을 수정 중이에요. 먼저 수정을 완료해 주세요.");
+        return;
+        }
+    
+        // 수정할 구획선 찾기
+        const targetRegion = savedRegions.find(
+            region => region.id === regionId
+        );
+    
+        if (!targetRegion) {
+            alert("구역 정보를 찾을 수 없어요.");
+            return;
+        }
+
+        // 현재 수정 중인 구획선 등록
+        activeRegionEdit = regionId;
+        
+        // 새 구획선 그리기 모드 종료
+        isRegionEditMode = false;
+        
+        toggleRegionEditButton.classList.remove("active");
+        toggleRegionEditButton.textContent = "🟡 구역 만들기";
+        
+        finishRegionButton.style.display = "none";
+        
+        // 아직 완성하지 않은 임시 선 초기화
+        regionPoints = [];
+        regionLine.setLatLngs([]);
+        
+        // 임시 꼭짓점 핀 제거
+        regionVertexMarkers.forEach(function(vertex) {
+            map.removeLayer(vertex);
+        });
+        
+        regionVertexMarkers = [];
+
+        
+        // 수정할 구역 정보 확인
+        console.log("수정할 구역:", targetRegion.name);
+        console.log("구역 좌표:", targetRegion.points);
+    
+        map.closePopup();
+        // =========================================
+        // 수정할 구역의 꼭짓점 표시
+        // =========================================
+        
+        // 저장된 좌표마다 수정용 핀 생성
+        const editVertices = targetRegion.points.map(function(point) {
+        
+            const vertex = createRegionVertex(point);
+        
+            // 수정용 핀 디자인 적용
+            vertex.getElement().classList.add("region-vertex-edit");
+        
+            return vertex;
+        });
+        
+        // 수정용 핀을 임시 보관
+        polygon.editVertices = editVertices;
+
+        // 수정 중인 구획선 강조
+        polygon.setStyle({
+            color: "#ff9f43",
+            weight: 4
+        });
+
+        // =========================================
+        // 수정용 꼭짓점 드래그 기능
+        // =========================================
+        
+        editVertices.forEach(function(vertex, index) {
+        
+            vertex.on("drag", function(e) {
+        
+                // 드래그한 핀의 새 위치
+                const newPosition = e.target.getLatLng();
+        
+                // 수정 중인 구역의 좌표 변경
+                targetRegion.points[index] = [
+                    newPosition.lat,
+                    newPosition.lng
+                ];
+        
+                // 변경된 좌표로 구획선 다시 그리기
+                polygon.setLatLngs(targetRegion.points);
+        
+            });
+        
+        });
+
+        // =========================================
+        // 구획선 수정 완료 버튼 생성
+        // =========================================
+        
+        const finishEditButton = document.createElement("button");
+        
+        finishEditButton.textContent = "✔ 수정 완료";
+        
+        finishEditButton.style.position = "absolute";
+        finishEditButton.style.top = "80px";
+        finishEditButton.style.right = "15px";
+        finishEditButton.style.zIndex = "2000";
+        
+        finishEditButton.style.padding = "12px 18px";
+        finishEditButton.style.background = "#6f9f55";
+        finishEditButton.style.color = "white";
+        finishEditButton.style.border = "none";
+        finishEditButton.style.borderRadius = "10px";
+        finishEditButton.style.fontWeight = "bold";
+        finishEditButton.style.cursor = "pointer";
+        
+        // 지도 위에 버튼 표시
+        map.getContainer().appendChild(finishEditButton);
+        
+        // =========================================
+        // 구획선 수정 완료 및 저장
+        // =========================================
+        
+        finishEditButton.addEventListener("click", function() {
+
+        // 수정 완료 버튼 중복 클릭 방지
+        if (finishEditButton.disabled) {
+            return;
+        }
+        
+        finishEditButton.disabled = true;
+        
+            // 수정된 구획선 좌표를 브라우저에 저장
+            saveRegions();
+
+            // 구획선 원래 디자인 복원
+            polygon.setStyle({
+                color: "#fff18a",
+                weight: 3
+            });
+        
+            // 수정용 꼭짓점 핀 제거
+            editVertices.forEach(function(vertex) {
+                map.removeLayer(vertex);
+            });
+        
+            // 수정용 핀 정보 초기화
+            polygon.editVertices = [];
+        
+            // 수정 완료 버튼 제거
+            finishEditButton.remove();
+
+            // 현재 수정 중인 구획선 정보 초기화
+            activeRegionEdit = null;
+        
+            alert("구획선 수정이 저장되었습니다!");
+        
+        });
+
+        
+        alert("✏️ " + targetRegion.name + " 구역을 수정할 준비가 되었어요!");
+    
+    });
+    
+    editButton.style.marginTop = "10px";
+    editButton.style.marginRight = "8px";
+    editButton.style.padding = "8px";
+    editButton.style.cursor = "pointer";
+
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "🗑️ 구역 삭제";
 
@@ -1954,6 +2157,12 @@ function addRegionDeletePopup(polygon, regionId, regionName) {
     deleteButton.style.cursor = "pointer";
 
     deleteButton.addEventListener("click", function() {
+
+        // 구획선 수정 중에는 삭제 방지
+        if (activeRegionEdit !== null) {
+            alert("구역 수정을 완료한 후 삭제해 주세요.");
+            return;
+        }
 
         if (!confirm("이 구역을 삭제할까요?")) {
             return;
@@ -1970,6 +2179,7 @@ function addRegionDeletePopup(polygon, regionId, regionName) {
 
     popupContainer.appendChild(title);
     popupContainer.appendChild(document.createElement("br"));
+    popupContainer.appendChild(editButton);
     popupContainer.appendChild(deleteButton);
 
     polygon.bindPopup(popupContainer);
@@ -2186,6 +2396,12 @@ regionVertexMarkers = [];
 finishRegionButton.addEventListener("click", finishRegion);
 
 toggleRegionEditButton.addEventListener("click", function() {
+
+    // 기존 구획선 수정 중에는 새 구역 편집 모드 전환 방지
+    if (activeRegionEdit !== null) {
+        alert("현재 구역 수정을 먼저 완료해 주세요.");
+        return;
+    }
 
     isRegionEditMode = !isRegionEditMode;
 
