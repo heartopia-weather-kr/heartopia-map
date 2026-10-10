@@ -538,7 +538,38 @@
     color: #332800;
     border-color: #c7a63c;
 }
-        
+
+/* =========================================
+   구역 완성 버튼
+========================================= */
+
+#finishRegionButton {
+    width: 100%;
+    height: 42px;
+
+    margin-top: 8px;
+
+    border: none;
+    border-radius: 10px;
+
+    background: #6f9f55;
+    color: white;
+
+    font-size: 14px;
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+#finishRegionButton:hover {
+    background: #598543;
+}
+
+#finishRegionButton:disabled {
+    background: #bcbcbc;
+    cursor: not-allowed;
+}
+
     </style>
 </head>
 
@@ -634,6 +665,17 @@
     <button id="closeSidebar">
         ◀ 메뉴 접기
     </button>
+
+<!-- =========================================
+     구역 완성 버튼
+========================================= -->
+
+<button
+    id="finishRegionButton"
+    style="display: none;"
+>
+    ✔ 구역 완성
+</button>
 
 </div>
 
@@ -1738,6 +1780,11 @@ map.on("click", function(e) {
         return;
     }
 
+    // 구역 완성 후에는 점 추가 방지
+    if (finishRegionButton.disabled) {
+    return;
+    }
+
     // 클릭한 위치 저장
     regionPoints.push([
         e.latlng.lat,
@@ -1752,25 +1799,62 @@ map.on("click", function(e) {
 const toggleRegionEditButton =
     document.getElementById("toggleRegionEdit");
 
+// 구역 완성 버튼
+const finishRegionButton =
+    document.getElementById("finishRegionButton");
+
+// =========================================
+// 구역 완성 기능
+// =========================================
+
+function finishRegion() {
+
+    // 구역을 만들려면 최소 3개의 점이 필요
+    if (regionPoints.length < 3) {
+        alert("구역을 만들려면 최소 3개의 점을 찍어주세요.");
+        return;
+    }
+
+    // 마지막 점과 첫 번째 점 연결
+    regionLine.setLatLngs([
+        ...regionPoints,
+        regionPoints[0]
+    ]);
+
+    // 완성 버튼 비활성화
+    finishRegionButton.disabled = true;
+
+    alert("구역 경계가 완성되었습니다!");
+}
+
+// 구역 완성 버튼 클릭
+finishRegionButton.addEventListener("click", finishRegion);
+
 toggleRegionEditButton.addEventListener("click", function() {
 
     isRegionEditMode = !isRegionEditMode;
 
     if (isRegionEditMode) {
 
-        toggleRegionEditButton.classList.add("active");
+    toggleRegionEditButton.classList.add("active");
 
-        toggleRegionEditButton.textContent =
-            "🟡 구역 편집 종료";
+    toggleRegionEditButton.textContent =
+        "🟡 구역 편집 종료";
 
-    } else {
+    // 편집 모드일 때 완성 버튼 표시
+    finishRegionButton.style.display = "block";
 
-        toggleRegionEditButton.classList.remove("active");
+} else {
 
-        toggleRegionEditButton.textContent =
-            "🟡 구역 만들기";
+    toggleRegionEditButton.classList.remove("active");
 
-    }
+    toggleRegionEditButton.textContent =
+        "🟡 구역 만들기";
+
+    // 일반 모드일 때 완성 버튼 숨김
+    finishRegionButton.style.display = "none";
+
+}
 
 });
 
